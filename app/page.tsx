@@ -17,6 +17,11 @@ interface CartItem {
   quantity: number;
 }
 
+interface ChatMessage {
+  sender: 'user' | 'bot';
+  text: string;
+}
+
 const FEATURED_PRODUCTS: Product[] = [
   {
     id: '1',
@@ -57,6 +62,13 @@ export default function HomePage() {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
+  // --- Chatbot State ---
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [inputMessage, setInputMessage] = useState('');
+  const [messages, setMessages] = useState<ChatMessage[]>([
+    { sender: 'bot', text: 'สวัสดีครับ! ยินดีต้อนรับสู่ Chanakanapp มีอะไรให้ผู้ช่วยตอบคำถามช่วยเหลือไหมครับ?' },
+  ]);
+
   // ฟังก์ชันเพิ่มสินค้า
   const addToCart = (product: Product) => {
     setCartItems((prevItems) => {
@@ -72,12 +84,9 @@ export default function HomePage() {
     });
 
     setToastMessage(`เพิ่ม "${product.name}" ลงในตะกร้าแล้ว!`);
-    setTimeout(() => {
-      setToastMessage(null);
-    }, 2000);
+    setTimeout(() => setToastMessage(null), 2000);
   };
 
-  // ฟังก์ชันปรับจำนวนสินค้าในตะกร้า
   const updateQuantity = (productId: string, delta: number) => {
     setCartItems((prevItems) =>
       prevItems
@@ -92,20 +101,47 @@ export default function HomePage() {
     );
   };
 
-  // ฟังก์ชันลบสินค้าออกจากตะกร้า
   const removeItem = (productId: string) => {
     setCartItems((prevItems) => prevItems.filter((item) => item.product.id !== productId));
   };
 
-  // สรุปจำนวนสินค้าและราคารวม
   const totalCartCount = cartItems.reduce((total, item) => total + item.quantity, 0);
   const totalPrice = cartItems.reduce((total, item) => total + item.product.price * item.quantity, 0);
+
+  // --- Chatbot Logic ---
+  const handleSendMessage = (textToSend?: string) => {
+    const text = textToSend || inputMessage;
+    if (!text.trim()) return;
+
+    // เพิ่มข้อความผู้ใช้
+    const newMessages: ChatMessage[] = [...messages, { sender: 'user', text }];
+    setMessages(newMessages);
+    if (!textToSend) setInputMessage('');
+
+    // ประมวลผลคำตอบอัตโนมัติ
+    setTimeout(() => {
+      let botResponse = 'ขออภัยครับ เจ้าหน้าที่จะรีบมาตอบกลับให้เร็วที่สุด หรือลองเลือกคำถามยอดฮิตด้านล่างได้เลยครับ';
+      const lowerText = text.toLowerCase();
+
+      if (lowerText.includes('ส่ง') || lowerText.includes('ค่าส่ง') || lowerText.includes('ขนส่ง')) {
+        botResponse = 'จัดส่งฟรีทั่วไทยเมื่อซื้อครบ ฿500 ขึ้นไปครับ! (หากไม่ถึง ค่าจัดส่งเริ่มต้น ฿40 ครับ)';
+      } else if (lowerText.includes('ประกัน') || lowerText.includes('แท้')) {
+        botResponse = 'สินค้าทุกชิ้นใน Chanakanapp รับประกันของแท้ 100% มีปัญหาเปลี่ยนคืนได้ภายใน 7 วันครับ';
+      } else if (lowerText.includes('ติดตาม') || lowerText.includes('พัสดุ')) {
+        botResponse = 'สามารถนำเลข Tracking Code ไปเช็กสถานะการจัดส่งได้ที่เมนู "ติดตามพัสดุ" ในโปรไฟล์ของคุณได้เลยครับ';
+      } else if (lowerText.includes('ชำระเงิน') || lowerText.includes('จ่ายเงิน')) {
+        botResponse = 'เรารองรับทั้งการโอนผ่าน QR Code, บัตรเครดิต/เดบิต และบริการเก็บเงินปลายทาง (COD) ครับ';
+      }
+
+      setMessages((prev) => [...prev, { sender: 'bot', text: botResponse }]);
+    }, 600);
+  };
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 font-sans relative">
       {/* Toast Notification */}
       {toastMessage && (
-        <div className="fixed bottom-5 right-5 z-50 bg-slate-900 text-white px-4 py-3 rounded-xl shadow-lg border border-slate-700 transition-all duration-300">
+        <div className="fixed bottom-20 right-5 z-50 bg-slate-900 text-white px-4 py-3 rounded-xl shadow-lg border border-slate-700 transition-all duration-300">
           {toastMessage}
         </div>
       )}
@@ -124,7 +160,7 @@ export default function HomePage() {
             <Link href="#" className="hover:text-blue-600 transition">เกี่ยวกับเรา</Link>
           </nav>
 
-          {/* ปุ่มกดเปิดตะกร้าสินค้า */}
+          {/* ปุ่มเปิดตะกร้าสินค้า */}
           <div className="relative">
             <button
               onClick={() => setIsCartOpen(true)}
@@ -175,7 +211,7 @@ export default function HomePage() {
         <div className="flex justify-between items-end mb-8">
           <div>
             <h2 className="text-2xl font-bold text-slate-900">สินค้ายอดนิยม</h2>
-            <p className="text-slate-500 text-sm mt-1">กดปุ่ม "+ เพิ่มลงตะกร้า" แล้วกดดูตะกร้าที่มุมขวาบนได้เลย</p>
+            <p className="text-slate-500 text-sm mt-1">กดปุ่ม "+ เพิ่มลงตะกร้า" หรือลองทักแชตคุยกับแชตบอตมุมขวาล่างได้เลย</p>
           </div>
         </div>
 
@@ -214,10 +250,103 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Modal หน้าต่างสไลด์ดูตะกร้าสินค้า (Slide-over Cart Drawer) */}
+      {/* --- Floating Chatbot Component --- */}
+      <div className="fixed bottom-5 right-5 z-50">
+        {!isChatOpen ? (
+          // ปุ่มกลมสำหรับกดเปิดแชต
+          <button
+            onClick={() => setIsChatOpen(true)}
+            className="w-14 h-14 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-2xl flex items-center justify-center transition-all transform hover:scale-105"
+            aria-label="เปิดผู้ช่วยแชตบอต"
+          >
+            <span className="text-2xl">💬</span>
+          </button>
+        ) : (
+          // หน้าต่างกล่องข้อความ Chatbot
+          <div className="w-80 sm:w-96 bg-white rounded-2xl shadow-2xl border border-slate-200 flex flex-col overflow-hidden animate-in fade-in slide-in-from-bottom-5">
+            {/* Header แชต */}
+            <div className="bg-blue-600 text-white p-4 flex justify-between items-center">
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 bg-green-400 rounded-full border-2 border-white"></div>
+                <div>
+                  <h3 className="font-bold text-sm">ผู้ช่วย ChanakanBot</h3>
+                  <p className="text-xs text-blue-100">ตอบกลับอัตโนมัติ 24 ชม.</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setIsChatOpen(false)} 
+                className="text-blue-100 hover:text-white font-bold p-1 text-lg"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* แสดงรายการข้อความ */}
+            <div className="p-4 h-72 overflow-y-auto space-y-3 bg-slate-50 text-xs">
+              {messages.map((msg, index) => (
+                <div
+                  key={index}
+                  className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
+                >
+                  <div
+                    className={`max-w-[80%] p-3 rounded-2xl ${
+                      msg.sender === 'user'
+                        ? 'bg-blue-600 text-white rounded-br-none'
+                        : 'bg-white text-slate-800 border border-slate-200 shadow-sm rounded-bl-none'
+                    }`}
+                  >
+                    {msg.text}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* ตัวเลือกคำถามยอดฮิต (Quick Suggestions) */}
+            <div className="p-2 bg-white border-t border-slate-100 flex gap-1.5 overflow-x-auto text-[11px]">
+              <button
+                onClick={() => handleSendMessage('ค่าจัดส่งเท่าไหร่?')}
+                className="px-2.5 py-1 bg-slate-100 hover:bg-blue-50 hover:text-blue-600 rounded-full text-slate-600 whitespace-nowrap transition"
+              >
+                🚚 ค่าจัดส่ง?
+              </button>
+              <button
+                onClick={() => handleSendMessage('การรับประกันสินค้า')}
+                className="px-2.5 py-1 bg-slate-100 hover:bg-blue-50 hover:text-blue-600 rounded-full text-slate-600 whitespace-nowrap transition"
+              >
+                🛡️ การรับประกัน?
+              </button>
+              <button
+                onClick={() => handleSendMessage('ช่องทางการชำระเงิน')}
+                className="px-2.5 py-1 bg-slate-100 hover:bg-blue-50 hover:text-blue-600 rounded-full text-slate-600 whitespace-nowrap transition"
+              >
+                💳 การชำระเงิน?
+              </button>
+            </div>
+
+            {/* ช่องพิมพ์ข้อความ */}
+            <div className="p-3 bg-white border-t border-slate-200 flex gap-2">
+              <input
+                type="text"
+                placeholder="พิมพ์คำถามที่นี่..."
+                value={inputMessage}
+                onChange={(e) => setInputMessage(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
+                className="flex-1 px-3 py-2 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-blue-600"
+              />
+              <button
+                onClick={() => handleSendMessage()}
+                className="px-3 py-2 bg-blue-600 text-white rounded-xl font-semibold text-xs hover:bg-blue-700 transition"
+              >
+                ส่ง
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Slide-over Cart Drawer */}
       {isCartOpen && (
         <div className="fixed inset-0 z-50 overflow-hidden">
-          {/* พื้นหลังสีดำจางๆ กดปิดได้ */}
           <div 
             className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm transition-opacity"
             onClick={() => setIsCartOpen(false)}
@@ -225,7 +354,6 @@ export default function HomePage() {
 
           <div className="fixed inset-y-0 right-0 max-w-full flex pl-10">
             <div className="w-screen max-w-md bg-white shadow-xl flex flex-col">
-              {/* Cart Header */}
               <div className="p-4 border-b border-slate-100 flex items-center justify-between">
                 <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
                   <span>🛒 ตะกร้าสินค้าของคุณ</span>
@@ -241,7 +369,6 @@ export default function HomePage() {
                 </button>
               </div>
 
-              {/* Cart Item List */}
               <div className="flex-1 overflow-y-auto p-4 space-y-4">
                 {cartItems.length === 0 ? (
                   <div className="text-center py-12 text-slate-500">
@@ -262,7 +389,6 @@ export default function HomePage() {
                           <p className="text-xs text-blue-600 font-bold mt-0.5">฿{product.price.toLocaleString()}</p>
                         </div>
                         <div className="flex items-center justify-between mt-2">
-                          {/* ปุ่มเพิ่ม/ลด จำนวน */}
                           <div className="flex items-center border border-slate-200 bg-white rounded-md">
                             <button 
                               onClick={() => updateQuantity(product.id, -1)}
@@ -278,7 +404,6 @@ export default function HomePage() {
                               +
                             </button>
                           </div>
-                          {/* ปุ่มลบรายการ */}
                           <button 
                             onClick={() => removeItem(product.id)}
                             className="text-xs text-red-500 hover:underline"
@@ -292,7 +417,6 @@ export default function HomePage() {
                 )}
               </div>
 
-              {/* Cart Footer & Checkout */}
               {cartItems.length > 0 && (
                 <div className="p-4 border-t border-slate-100 bg-slate-50 space-y-3">
                   <div className="flex justify-between text-slate-600 text-sm">
