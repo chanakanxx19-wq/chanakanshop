@@ -22,6 +22,11 @@ interface ChatMessage {
   text: string;
 }
 
+interface User {
+  name: string;
+  email: string;
+}
+
 const FEATURED_PRODUCTS: Product[] = [
   {
     id: '1',
@@ -62,6 +67,14 @@ export default function HomePage() {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
+  // --- Auth State ---
+  const [user, setUser] = useState<User | null>(null); // สถานะผู้ใช้ปัจจุบัน
+  const [isAuthOpen, setIsAuthOpen] = useState(false); // ปิด/เปิด Modal
+  const [authMode, setAuthMode] = useState<'login' | 'register'>('login'); // สลับโหมด
+  const [authEmail, setAuthEmail] = useState('');
+  const [authPassword, setAuthPassword] = useState('');
+  const [authName, setAuthName] = useState('');
+
   // --- Chatbot State ---
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [inputMessage, setInputMessage] = useState('');
@@ -69,7 +82,49 @@ export default function HomePage() {
     { sender: 'bot', text: 'สวัสดีครับ! ยินดีต้อนรับสู่ Chanakanapp มีอะไรให้ผู้ช่วยตอบคำถามช่วยเหลือไหมครับ?' },
   ]);
 
-  // ฟังก์ชันเพิ่มสินค้า
+  // Toast Helper
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 2500);
+  };
+
+  // --- Auth Handlers ---
+  const handleAuthSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!authEmail || !authPassword) {
+      showToast('กรุณากรอกข้อมูลให้ครบถ้วน');
+      return;
+    }
+
+    if (authMode === 'login') {
+      // จำลองการเข้าสู่ระบบ
+      const loggedUser = { name: authEmail.split('@')[0], email: authEmail };
+      setUser(loggedUser);
+      showToast(`ยินดีต้อนรับกลับ, ${loggedUser.name}!`);
+    } else {
+      // จำลองการสมัครสมาชิก
+      if (!authName) {
+        showToast('กรุณากรอกชื่อผู้ใช้งาน');
+        return;
+      }
+      const newUser = { name: authName, email: authEmail };
+      setUser(newUser);
+      showToast('สมัครสมาชิกสำเร็จ!');
+    }
+
+    // ล้างข้อมูลและปิด Modal
+    setIsAuthOpen(false);
+    setAuthEmail('');
+    setAuthPassword('');
+    setAuthName('');
+  };
+
+  const handleLogout = () => {
+    setUser(null);
+    showToast('ออกจากระบบเรียบร้อยแล้ว');
+  };
+
+  // --- Cart Handlers ---
   const addToCart = (product: Product) => {
     setCartItems((prevItems) => {
       const existingItem = prevItems.find((item) => item.product.id === product.id);
@@ -83,8 +138,7 @@ export default function HomePage() {
       return [...prevItems, { product, quantity: 1 }];
     });
 
-    setToastMessage(`เพิ่ม "${product.name}" ลงในตะกร้าแล้ว!`);
-    setTimeout(() => setToastMessage(null), 2000);
+    showToast(`เพิ่ม "${product.name}" ลงในตะกร้าแล้ว!`);
   };
 
   const updateQuantity = (productId: string, delta: number) => {
@@ -113,24 +167,20 @@ export default function HomePage() {
     const text = textToSend || inputMessage;
     if (!text.trim()) return;
 
-    // เพิ่มข้อความผู้ใช้
     const newMessages: ChatMessage[] = [...messages, { sender: 'user', text }];
     setMessages(newMessages);
     if (!textToSend) setInputMessage('');
 
-    // ประมวลผลคำตอบอัตโนมัติ
     setTimeout(() => {
-      let botResponse = 'ขออภัยครับ เจ้าหน้าที่จะรีบมาตอบกลับให้เร็วที่สุด หรือลองเลือกคำถามยอดฮิตด้านล่างได้เลยครับ';
+      let botResponse = 'ขออภัยครับ เจ้าหน้าที่จะรีบมาตอบกลับให้เร็วที่สุดครับ';
       const lowerText = text.toLowerCase();
 
-      if (lowerText.includes('ส่ง') || lowerText.includes('ค่าส่ง') || lowerText.includes('ขนส่ง')) {
-        botResponse = 'จัดส่งฟรีทั่วไทยเมื่อซื้อครบ ฿500 ขึ้นไปครับ! (หากไม่ถึง ค่าจัดส่งเริ่มต้น ฿40 ครับ)';
+      if (lowerText.includes('ส่ง') || lowerText.includes('ค่าส่ง')) {
+        botResponse = 'จัดส่งฟรีทั่วไทยเมื่อซื้อครบ ฿500 ขึ้นไปครับ!';
       } else if (lowerText.includes('ประกัน') || lowerText.includes('แท้')) {
-        botResponse = 'สินค้าทุกชิ้นใน Chanakanapp รับประกันของแท้ 100% มีปัญหาเปลี่ยนคืนได้ภายใน 7 วันครับ';
-      } else if (lowerText.includes('ติดตาม') || lowerText.includes('พัสดุ')) {
-        botResponse = 'สามารถนำเลข Tracking Code ไปเช็กสถานะการจัดส่งได้ที่เมนู "ติดตามพัสดุ" ในโปรไฟล์ของคุณได้เลยครับ';
-      } else if (lowerText.includes('ชำระเงิน') || lowerText.includes('จ่ายเงิน')) {
-        botResponse = 'เรารองรับทั้งการโอนผ่าน QR Code, บัตรเครดิต/เดบิต และบริการเก็บเงินปลายทาง (COD) ครับ';
+        botResponse = 'สินค้าทุกชิ้นใน Chanakanapp รับประกันของแท้ 100% ครับ';
+      } else if (lowerText.includes('ชำระเงิน')) {
+        botResponse = 'รองรับการโอนผ่าน QR Code, บัตรเครดิต/เดบิต และ COD เก็บเงินปลายทางครับ';
       }
 
       setMessages((prev) => [...prev, { sender: 'bot', text: botResponse }]);
@@ -141,7 +191,7 @@ export default function HomePage() {
     <div className="min-h-screen bg-slate-50 text-slate-800 font-sans relative">
       {/* Toast Notification */}
       {toastMessage && (
-        <div className="fixed bottom-20 right-5 z-50 bg-slate-900 text-white px-4 py-3 rounded-xl shadow-lg border border-slate-700 transition-all duration-300">
+        <div className="fixed bottom-20 right-5 z-50 bg-slate-900 text-white px-4 py-3 rounded-xl shadow-lg border border-slate-700 transition-all duration-300 text-sm">
           {toastMessage}
         </div>
       )}
@@ -160,8 +210,33 @@ export default function HomePage() {
             <Link href="#" className="hover:text-blue-600 transition">เกี่ยวกับเรา</Link>
           </nav>
 
-          {/* ปุ่มเปิดตะกร้าสินค้า */}
-          <div className="relative">
+          <div className="flex items-center gap-4">
+            {/* เมนูจัดการล็อกอิน / โปรไฟล์ */}
+            {user ? (
+              <div className="flex items-center gap-3">
+                <span className="text-sm font-medium text-slate-700 hidden sm:inline">
+                  👤 {user.name}
+                </span>
+                <button
+                  onClick={handleLogout}
+                  className="text-xs px-3 py-1.5 border border-red-200 text-red-600 rounded-lg hover:bg-red-50 transition font-medium"
+                >
+                  ออกจากระบบ
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => {
+                  setAuthMode('login');
+                  setIsAuthOpen(true);
+                }}
+                className="text-sm px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium shadow-sm"
+              >
+                เข้าสู่ระบบ
+              </button>
+            )}
+
+            {/* ปุ่มเปิดตะกร้าสินค้า */}
             <button
               onClick={() => setIsCartOpen(true)}
               aria-label="ตะกร้าสินค้า"
@@ -211,7 +286,7 @@ export default function HomePage() {
         <div className="flex justify-between items-end mb-8">
           <div>
             <h2 className="text-2xl font-bold text-slate-900">สินค้ายอดนิยม</h2>
-            <p className="text-slate-500 text-sm mt-1">กดปุ่ม "+ เพิ่มลงตะกร้า" หรือลองทักแชตคุยกับแชตบอตมุมขวาล่างได้เลย</p>
+            <p className="text-slate-500 text-sm mt-1">ช้อปสินค้าคุณภาพ และทดสอบระบบล็อกอินได้ที่แถบเมนูด้านบน</p>
           </div>
         </div>
 
@@ -250,10 +325,101 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* --- Modal เข้าสู่ระบบ / สมัครสมาชิก --- */}
+      {isAuthOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div 
+            className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm"
+            onClick={() => setIsAuthOpen(false)}
+          />
+          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 z-10 overflow-hidden">
+            <div className="flex justify-between items-center mb-6 border-b border-slate-100 pb-4">
+              <h3 className="text-xl font-bold text-slate-900">
+                {authMode === 'login' ? 'เข้าสู่ระบบ' : 'สมัครสมาชิกใหม่'}
+              </h3>
+              <button 
+                onClick={() => setIsAuthOpen(false)}
+                className="text-slate-400 hover:text-slate-600 font-bold"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleAuthSubmit} className="space-y-4">
+              {authMode === 'register' && (
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">ชื่อผู้ใช้งาน</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="กรอกชื่อของคุณ"
+                    value={authName}
+                    onChange={(e) => setAuthName(e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-600"
+                  />
+                </div>
+              )}
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">อีเมล</label>
+                <input
+                  type="email"
+                  required
+                  placeholder="name@example.com"
+                  value={authEmail}
+                  onChange={(e) => setAuthEmail(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-600"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">รหัสผ่าน</label>
+                <input
+                  type="password"
+                  required
+                  placeholder="••••••••"
+                  value={authPassword}
+                  onChange={(e) => setAuthPassword(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-600"
+                />
+              </div>
+
+              <button
+                type="submit"
+                className="w-full py-2.5 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition text-sm shadow-md mt-2"
+              >
+                {authMode === 'login' ? 'เข้าสู่ระบบ' : 'ยืนยันสมัครสมาชิก'}
+              </button>
+            </form>
+
+            <div className="mt-4 text-center text-xs text-slate-500 border-t border-slate-100 pt-4">
+              {authMode === 'login' ? (
+                <p>
+                  ยังไม่มีบัญชีใช่ไหม?{' '}
+                  <button
+                    onClick={() => setAuthMode('register')}
+                    className="text-blue-600 font-semibold hover:underline"
+                  >
+                    สมัครสมาชิกที่นี่
+                  </button>
+                </p>
+              ) : (
+                <p>
+                  มีบัญชีอยู่แล้ว?{' '}
+                  <button
+                    onClick={() => setAuthMode('login')}
+                    className="text-blue-600 font-semibold hover:underline"
+                  >
+                    เข้าสู่ระบบ
+                  </button>
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* --- Floating Chatbot Component --- */}
       <div className="fixed bottom-5 right-5 z-50">
         {!isChatOpen ? (
-          // ปุ่มกลมสำหรับกดเปิดแชต
           <button
             onClick={() => setIsChatOpen(true)}
             className="w-14 h-14 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-2xl flex items-center justify-center transition-all transform hover:scale-105"
@@ -262,9 +428,7 @@ export default function HomePage() {
             <span className="text-2xl">💬</span>
           </button>
         ) : (
-          // หน้าต่างกล่องข้อความ Chatbot
-          <div className="w-80 sm:w-96 bg-white rounded-2xl shadow-2xl border border-slate-200 flex flex-col overflow-hidden animate-in fade-in slide-in-from-bottom-5">
-            {/* Header แชต */}
+          <div className="w-80 sm:w-96 bg-white rounded-2xl shadow-2xl border border-slate-200 flex flex-col overflow-hidden">
             <div className="bg-blue-600 text-white p-4 flex justify-between items-center">
               <div className="flex items-center gap-2">
                 <div className="w-3 h-3 bg-green-400 rounded-full border-2 border-white"></div>
@@ -281,7 +445,6 @@ export default function HomePage() {
               </button>
             </div>
 
-            {/* แสดงรายการข้อความ */}
             <div className="p-4 h-72 overflow-y-auto space-y-3 bg-slate-50 text-xs">
               {messages.map((msg, index) => (
                 <div
@@ -301,7 +464,6 @@ export default function HomePage() {
               ))}
             </div>
 
-            {/* ตัวเลือกคำถามยอดฮิต (Quick Suggestions) */}
             <div className="p-2 bg-white border-t border-slate-100 flex gap-1.5 overflow-x-auto text-[11px]">
               <button
                 onClick={() => handleSendMessage('ค่าจัดส่งเท่าไหร่?')}
@@ -315,15 +477,8 @@ export default function HomePage() {
               >
                 🛡️ การรับประกัน?
               </button>
-              <button
-                onClick={() => handleSendMessage('ช่องทางการชำระเงิน')}
-                className="px-2.5 py-1 bg-slate-100 hover:bg-blue-50 hover:text-blue-600 rounded-full text-slate-600 whitespace-nowrap transition"
-              >
-                💳 การชำระเงิน?
-              </button>
             </div>
 
-            {/* ช่องพิมพ์ข้อความ */}
             <div className="p-3 bg-white border-t border-slate-200 flex gap-2">
               <input
                 type="text"
