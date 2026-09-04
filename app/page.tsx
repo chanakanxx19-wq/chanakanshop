@@ -68,9 +68,9 @@ export default function HomePage() {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   // --- Auth State ---
-  const [user, setUser] = useState<User | null>(null); // สถานะผู้ใช้ปัจจุบัน
-  const [isAuthOpen, setIsAuthOpen] = useState(false); // ปิด/เปิด Modal
-  const [authMode, setAuthMode] = useState<'login' | 'register'>('login'); // สลับโหมด
+  const [user, setUser] = useState<User | null>(null);
+  const [isAuthOpen, setIsAuthOpen] = useState(false);
+  const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
   const [authEmail, setAuthEmail] = useState('');
   const [authPassword, setAuthPassword] = useState('');
   const [authName, setAuthName] = useState('');
@@ -97,12 +97,10 @@ export default function HomePage() {
     }
 
     if (authMode === 'login') {
-      // จำลองการเข้าสู่ระบบ
       const loggedUser = { name: authEmail.split('@')[0], email: authEmail };
       setUser(loggedUser);
       showToast(`ยินดีต้อนรับกลับ, ${loggedUser.name}!`);
     } else {
-      // จำลองการสมัครสมาชิก
       if (!authName) {
         showToast('กรุณากรอกชื่อผู้ใช้งาน');
         return;
@@ -112,7 +110,6 @@ export default function HomePage() {
       showToast('สมัครสมาชิกสำเร็จ!');
     }
 
-    // ล้างข้อมูลและปิด Modal
     setIsAuthOpen(false);
     setAuthEmail('');
     setAuthPassword('');
@@ -162,7 +159,7 @@ export default function HomePage() {
   const totalCartCount = cartItems.reduce((total, item) => total + item.quantity, 0);
   const totalPrice = cartItems.reduce((total, item) => total + item.product.price * item.quantity, 0);
 
-  // --- Chatbot Logic ---
+  // --- Expanded Chatbot Logic ---
   const handleSendMessage = (textToSend?: string) => {
     const text = textToSend || inputMessage;
     if (!text.trim()) return;
@@ -176,11 +173,17 @@ export default function HomePage() {
       const lowerText = text.toLowerCase();
 
       if (lowerText.includes('ส่ง') || lowerText.includes('ค่าส่ง')) {
-        botResponse = 'จัดส่งฟรีทั่วไทยเมื่อซื้อครบ ฿500 ขึ้นไปครับ!';
-      } else if (lowerText.includes('ประกัน') || lowerText.includes('แท้')) {
-        botResponse = 'สินค้าทุกชิ้นใน Chanakanapp รับประกันของแท้ 100% ครับ';
-      } else if (lowerText.includes('ชำระเงิน')) {
-        botResponse = 'รองรับการโอนผ่าน QR Code, บัตรเครดิต/เดบิต และ COD เก็บเงินปลายทางครับ';
+        botResponse = 'จัดส่งฟรีทั่วไทยเมื่อซื้อครบ ฿500 ขึ้นไปครับ! (กรณีไม่ถึงคิดค่าส่ง ฿50)';
+      } else if (lowerText.includes('ส่วนลด') || lowerText.includes('โค้ด')) {
+        botResponse = '🎉 ลูกค้าใหม่ใช้โค้ด "CHANAKAN100" รับส่วนลดทันที ฿100 เมื่อช้อปครบ ฿1,000 ครับ!';
+      } else if (lowerText.includes('สถานะ') || lowerText.includes('ติดตาม') || lowerText.includes('พัสดุ')) {
+        botResponse = '📦 คุณสามารถเช็กสถานะพัสดุได้จากอีเมลยืนยันการสั่งซื้อ หรือแจ้งเลขคำสั่งซื้อให้แอดมินช่วยเช็กได้เลยครับ';
+      } else if (lowerText.includes('เปลี่ยน') || lowerText.includes('คืน') || lowerText.includes('เคลม')) {
+        botResponse = '🔄 สินค้ามีปัญหา สามารถแจ้งเคลม/เปลี่ยนชิ้นใหม่ได้ฟรีภายใน 7 วันหลังได้รับสินค้าครับ';
+      } else if (lowerText.includes('แอดมิน') || lowerText.includes('คน') || lowerText.includes('เจ้าหน้าที่')) {
+        botResponse = '📞 แอดมินพร้อมให้บริการครับ สามารถพิมพ์คำถามหรือฝากเบอร์โทรศัพท์ไว้ได้เลยครับ';
+      } else if (lowerText.includes('ชำระเงิน') || lowerText.includes('จ่าย')) {
+        botResponse = '💳 รองรับการโอนผ่าน QR Code, บัตรเครดิต/เดบิต และบริการเก็บเงินปลายทาง (COD) ครับ';
       }
 
       setMessages((prev) => [...prev, { sender: 'bot', text: botResponse }]);
@@ -211,7 +214,7 @@ export default function HomePage() {
           </nav>
 
           <div className="flex items-center gap-4">
-            {/* เมนูจัดการล็อกอิน / โปรไฟล์ */}
+            {/* Auth Button */}
             {user ? (
               <div className="flex items-center gap-3">
                 <span className="text-sm font-medium text-slate-700 hidden sm:inline">
@@ -236,7 +239,7 @@ export default function HomePage() {
               </button>
             )}
 
-            {/* ปุ่มเปิดตะกร้าสินค้า */}
+            {/* Cart Button */}
             <button
               onClick={() => setIsCartOpen(true)}
               aria-label="ตะกร้าสินค้า"
@@ -274,7 +277,7 @@ export default function HomePage() {
           <div className="hidden md:block relative h-80 rounded-2xl overflow-hidden shadow-xl">
             <img 
               src="https://images.unsplash.com/photo-1483985988355-763728e1935b?w=800&auto=format&fit=crop&q=80" 
-              alt="Chanakanapp Shopping Banner" 
+              alt="Chanakanapp Banner" 
               className="w-full h-full object-cover"
             />
           </div>
@@ -286,7 +289,7 @@ export default function HomePage() {
         <div className="flex justify-between items-end mb-8">
           <div>
             <h2 className="text-2xl font-bold text-slate-900">สินค้ายอดนิยม</h2>
-            <p className="text-slate-500 text-sm mt-1">ช้อปสินค้าคุณภาพ และทดสอบระบบล็อกอินได้ที่แถบเมนูด้านบน</p>
+            <p className="text-slate-500 text-sm mt-1">คัดสรรสินค้าคุณภาพเพื่อคุณโดยเฉพาะ</p>
           </div>
         </div>
 
@@ -417,7 +420,7 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* --- Floating Chatbot Component --- */}
+      {/* --- Chatbot Widget --- */}
       <div className="fixed bottom-5 right-5 z-50">
         {!isChatOpen ? (
           <button
@@ -464,18 +467,31 @@ export default function HomePage() {
               ))}
             </div>
 
-            <div className="p-2 bg-white border-t border-slate-100 flex gap-1.5 overflow-x-auto text-[11px]">
+            {/* Quick Suggestions Bar */}
+            <div className="p-2 bg-white border-t border-slate-100 flex gap-1.5 overflow-x-auto text-[11px] scrollbar-thin">
               <button
-                onClick={() => handleSendMessage('ค่าจัดส่งเท่าไหร่?')}
-                className="px-2.5 py-1 bg-slate-100 hover:bg-blue-50 hover:text-blue-600 rounded-full text-slate-600 whitespace-nowrap transition"
+                onClick={() => handleSendMessage('มีโค้ดส่วนลดไหม?')}
+                className="px-2.5 py-1 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-full font-medium whitespace-nowrap transition"
               >
-                🚚 ค่าจัดส่ง?
+                🏷️ โค้ดส่วนลด
               </button>
               <button
-                onClick={() => handleSendMessage('การรับประกันสินค้า')}
+                onClick={() => handleSendMessage('ติดตามสถานะพัสดุ')}
                 className="px-2.5 py-1 bg-slate-100 hover:bg-blue-50 hover:text-blue-600 rounded-full text-slate-600 whitespace-nowrap transition"
               >
-                🛡️ การรับประกัน?
+                📦 เช็กสถานะพัสดุ
+              </button>
+              <button
+                onClick={() => handleSendMessage('เงื่อนไขการเคลมและคืนสินค้า')}
+                className="px-2.5 py-1 bg-slate-100 hover:bg-blue-50 hover:text-blue-600 rounded-full text-slate-600 whitespace-nowrap transition"
+              >
+                🔄 การคืนสินค้า
+              </button>
+              <button
+                onClick={() => handleSendMessage('ขอคุยกับแอดมิน')}
+                className="px-2.5 py-1 bg-slate-100 hover:bg-blue-50 hover:text-blue-600 rounded-full text-slate-600 whitespace-nowrap transition"
+              >
+                📞 ติดต่อแอดมิน
               </button>
             </div>
 
@@ -499,7 +515,7 @@ export default function HomePage() {
         )}
       </div>
 
-      {/* Slide-over Cart Drawer */}
+      {/* Cart Drawer */}
       {isCartOpen && (
         <div className="fixed inset-0 z-50 overflow-hidden">
           <div 
@@ -582,7 +598,7 @@ export default function HomePage() {
                     onClick={() => alert('นำคุณเข้าสู่ขั้นตอนการชำระเงิน!')}
                     className="w-full py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition shadow-md"
                   >
-                    ดำเนินการสั่งซื้อ สินค้า →
+                    ดำเนินการสั่งซื้อสินค้า →
                   </button>
                 </div>
               )}
