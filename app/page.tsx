@@ -1,11 +1,24 @@
+'use client';
+
+import { useState } from 'react';
 import Link from 'next/link';
 
-// ลิงก์รูปภาพถ่ายสินค้าโดยตรง (Product Photography)
-const FEATURED_PRODUCTS = [
+// โครงสร้างข้อมูลสินค้า
+interface Product {
+  id: string;
+  name: string;
+  price: number;
+  category: string;
+  rating: string;
+  image: string;
+}
+
+// รายการสินค้าตัวอย่าง
+const FEATURED_PRODUCTS: Product[] = [
   {
     id: '1',
     name: 'Chanakan Signature Bag',
-    price: '฿1,290',
+    price: 1290,
     category: 'Fashion',
     rating: '4.8',
     image: 'https://images.unsplash.com/photo-1584917865442-de89df76afd3?w=600&auto=format&fit=crop&q=80',
@@ -13,7 +26,7 @@ const FEATURED_PRODUCTS = [
   {
     id: '2',
     name: 'Wireless Premium Earbuds',
-    price: '฿2,590',
+    price: 2590,
     category: 'Gadgets',
     rating: '4.9',
     image: 'https://images.unsplash.com/photo-1590658268037-6bf12165a8df?w=600&auto=format&fit=crop&q=80',
@@ -21,7 +34,7 @@ const FEATURED_PRODUCTS = [
   {
     id: '3',
     name: 'Minimalist Watch Gold',
-    price: '฿3,400',
+    price: 3400,
     category: 'Accessories',
     rating: '4.7',
     image: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600&auto=format&fit=crop&q=80',
@@ -29,7 +42,7 @@ const FEATURED_PRODUCTS = [
   {
     id: '4',
     name: 'Smart Desk Lamp',
-    price: '฿890',
+    price: 890,
     category: 'Home',
     rating: '4.6',
     image: 'https://images.unsplash.com/photo-1507473885765-e6ed057f782c?w=600&auto=format&fit=crop&q=80',
@@ -37,8 +50,44 @@ const FEATURED_PRODUCTS = [
 ];
 
 export default function HomePage() {
+  // 1. State สำหรับเก็บรายการสินค้าที่ถูกใส่ตะกร้า { product, quantity }
+  const [cartItems, setCartItems] = useState<{ product: Product; quantity: number }[]>([]);
+  // State สำหรับข้อความแจ้งเตือนเวลาเพิ่มสินค้า
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  // 2. ฟังก์ชันเพิ่มสินค้าลงตะกร้า
+  const addToCart = (product: Product) => {
+    setCartItems((prevItems) => {
+      const existingItem = prevItems.find((item) => item.product.id === product.id);
+      if (existingItem) {
+        return prevItems.map((item) =>
+          item.product.id === product.id
+            ? { ...item, quantity: item.quantity + 1 }
+            : item
+        );
+      }
+      return [...prevItems, { product, quantity: 1 }];
+    });
+
+    // แสดงแจ้งเตือนชั่วคราว 2 วินาที
+    setToastMessage(`เพิ่ม "${product.name}" ลงในตะกร้าแล้ว!`);
+    setTimeout(() => {
+      setToastMessage(null);
+    }, 2000);
+  };
+
+  // คำนวณจำนวนสินค้ารวมทั้งหมดในตะกร้า
+  const totalCartCount = cartItems.reduce((total, item) => total + item.quantity, 0);
+
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-800 font-sans">
+    <div className="min-h-screen bg-slate-50 text-slate-800 font-sans relative">
+      {/* แจ้งเตือนเมื่อกดเพิ่มสินค้า (Toast Notification) */}
+      {toastMessage && (
+        <div className="fixed bottom-5 right-5 z-50 bg-slate-900 text-white px-4 py-3 rounded-xl shadow-lg border border-slate-700 transition-all duration-300">
+          {toastMessage}
+        </div>
+      )}
+
       {/* 1. Header Navigation */}
       <header className="sticky top-0 z-50 bg-white border-b border-slate-200 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
@@ -60,9 +109,12 @@ export default function HomePage() {
                 <circle cx="19" cy="21" r="1" />
                 <path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12" />
               </svg>
-              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
-                2
-              </span>
+              {/* แสดงตัวเลขจำนวนสินค้าที่นับได้จริงจาก State */}
+              {totalCartCount > 0 && (
+                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center animate-bounce">
+                  {totalCartCount}
+                </span>
+              )}
             </button>
           </div>
         </div>
@@ -81,12 +133,6 @@ export default function HomePage() {
             <p className="text-blue-100 text-lg">
               ช้อปปิ้งสินค้าแบรนด์แท้ ครบจบในที่เดียว จัดส่งรวดเร็ว ปลอดภัย
             </p>
-            <Link
-              href="#"
-              className="inline-flex items-center justify-center px-6 py-3 bg-white text-blue-600 font-semibold rounded-lg shadow-md hover:bg-blue-50 transition"
-            >
-              ช้อปเลยตอนนี้ →
-            </Link>
           </div>
           <div className="hidden md:block relative h-80 rounded-2xl overflow-hidden shadow-xl">
             <img 
@@ -98,43 +144,13 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* 3. Features Highlight */}
-      <section className="py-10 bg-white border-b border-slate-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="flex items-center space-x-4 p-4 rounded-xl bg-slate-50">
-            <span className="text-3xl">🚚</span>
-            <div>
-              <h4 className="font-bold text-slate-900">จัดส่งฟรีทั่วไทย</h4>
-              <p className="text-sm text-slate-500">เมื่อสั่งซื้อสินค้าครบ ฿500 ขึ้นไป</p>
-            </div>
-          </div>
-          <div className="flex items-center space-x-4 p-4 rounded-xl bg-slate-50">
-            <span className="text-3xl">🛡️</span>
-            <div>
-              <h4 className="font-bold text-slate-900">รับประกันสินค้าแท้ 100%</h4>
-              <p className="text-sm text-slate-500">มั่นใจในคุณภาพ ยินดีคืนเงิน</p>
-            </div>
-          </div>
-          <div className="flex items-center space-x-4 p-4 rounded-xl bg-slate-50">
-            <span className="text-3xl">💳</span>
-            <div>
-              <h4 className="font-bold text-slate-900">ชำระเงินสะดวก</h4>
-              <p className="text-sm text-slate-500">รองรับโอนเงิน บัตรเครดิต และปลายทาง</p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* 4. Products Showcase */}
+      {/* 3. Products Showcase */}
       <section className="py-16 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-end mb-8">
           <div>
             <h2 className="text-2xl font-bold text-slate-900">สินค้ายอดนิยม</h2>
-            <p className="text-slate-500 text-sm mt-1">คัดสรรสินค้าขายดีที่ได้รับความนิยมสูงสุด</p>
+            <p className="text-slate-500 text-sm mt-1">กดปุ่ม "+ เพิ่มลงตะกร้า" เพื่อทดสอบฟังก์ชัน</p>
           </div>
-          <Link href="#" className="text-blue-600 hover:text-blue-700 text-sm font-semibold">
-            ดูทั้งหมด →
-          </Link>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -158,8 +174,11 @@ export default function HomePage() {
                   <h3 className="font-semibold text-slate-900 line-clamp-1">{product.name}</h3>
                 </div>
                 <div className="mt-4 flex items-center justify-between">
-                  <span className="text-lg font-bold text-blue-600">{product.price}</span>
-                  <button className="px-3 py-1.5 bg-blue-50 text-blue-600 text-sm font-semibold rounded-lg hover:bg-blue-600 hover:text-white transition">
+                  <span className="text-lg font-bold text-blue-600">฿{product.price.toLocaleString()}</span>
+                  <button 
+                    onClick={() => addToCart(product)}
+                    className="px-3 py-1.5 bg-blue-50 text-blue-600 text-sm font-semibold rounded-lg hover:bg-blue-600 hover:text-white transition active:scale-95"
+                  >
                     + เพิ่มลงตะกร้า
                   </button>
                 </div>
@@ -169,7 +188,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* 5. Footer */}
+      {/* 4. Footer */}
       <footer className="bg-white border-t border-slate-200 py-8 text-center text-sm text-slate-500">
         <p>© 2026 Chanakanapp. All rights reserved.</p>
       </footer>
