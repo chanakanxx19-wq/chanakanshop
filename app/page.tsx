@@ -27,6 +27,20 @@ interface User {
   email: string;
 }
 
+interface ShippingForm {
+  fullName: string;
+  phone: string;
+  email: string;
+  address: string;
+  subDistrict: string;
+  district: string;
+  province: string;
+  zipCode: string;
+  shippingMethod: 'standard' | 'express';
+  paymentMethod: 'qr' | 'credit' | 'cod';
+  note: string;
+}
+
 const FEATURED_PRODUCTS: Product[] = [
   {
     id: '1',
@@ -75,6 +89,22 @@ export default function HomePage() {
   const [authPassword, setAuthPassword] = useState('');
   const [authName, setAuthName] = useState('');
 
+  // --- Shipping & Checkout State ---
+  const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
+  const [shippingData, setShippingData] = useState<ShippingForm>({
+    fullName: '',
+    phone: '',
+    email: '',
+    address: '',
+    subDistrict: '',
+    district: '',
+    province: '',
+    zipCode: '',
+    shippingMethod: 'standard',
+    paymentMethod: 'qr',
+    note: '',
+  });
+
   // --- Chatbot State ---
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [inputMessage, setInputMessage] = useState('');
@@ -82,10 +112,9 @@ export default function HomePage() {
     { sender: 'bot', text: 'สวัสดีครับ! ยินดีต้อนรับสู่ Chanakanapp มีอะไรให้ผู้ช่วยตอบคำถามช่วยเหลือไหมครับ?' },
   ]);
 
-  // Toast Helper
   const showToast = (msg: string) => {
     setToastMessage(msg);
-    setTimeout(() => setToastMessage(null), 2500);
+    setTimeout(() => setToastMessage(null), 3000);
   };
 
   // --- Auth Handlers ---
@@ -99,6 +128,8 @@ export default function HomePage() {
     if (authMode === 'login') {
       const loggedUser = { name: authEmail.split('@')[0], email: authEmail };
       setUser(loggedUser);
+      // Auto-fill email in shipping form if logged in
+      setShippingData((prev) => ({ ...prev, email: authEmail, fullName: loggedUser.name }));
       showToast(`ยินดีต้อนรับกลับ, ${loggedUser.name}!`);
     } else {
       if (!authName) {
@@ -107,6 +138,7 @@ export default function HomePage() {
       }
       const newUser = { name: authName, email: authEmail };
       setUser(newUser);
+      setShippingData((prev) => ({ ...prev, email: authEmail, fullName: authName }));
       showToast('สมัครสมาชิกสำเร็จ!');
     }
 
@@ -157,9 +189,39 @@ export default function HomePage() {
   };
 
   const totalCartCount = cartItems.reduce((total, item) => total + item.quantity, 0);
-  const totalPrice = cartItems.reduce((total, item) => total + item.product.price * item.quantity, 0);
+  const itemsTotalPrice = cartItems.reduce((total, item) => total + item.product.price * item.quantity, 0);
+  const shippingFee = shippingData.shippingMethod === 'express' ? 80 : (itemsTotalPrice >= 500 ? 0 : 40);
+  const finalTotalPrice = itemsTotalPrice + shippingFee;
 
-  // --- Expanded Chatbot Logic ---
+  // --- Shipping & Checkout Handlers ---
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setShippingData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleOpenCheckout = () => {
+    if (cartItems.length === 0) {
+      showToast('ไม่มีสินค้าในตะกร้า');
+      return;
+    }
+    setIsCartOpen(false);
+    setIsCheckoutOpen(true);
+  };
+
+  const handleOrderSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!shippingData.fullName || !shippingData.phone || !shippingData.address || !shippingData.province || !shippingData.zipCode) {
+      showToast('กรุณากรอกข้อมูลที่อยู่จัดส่งให้ครบถ้วน');
+      return;
+    }
+
+    // จำลองการบันทึกคำสั่งซื้อ
+    showToast(`🎉 สั่งซื้อสำเร็จ! เลขที่คำสั่งซื้อ #CHK${Math.floor(100000 + Math.random() * 900000)}`);
+    setCartItems([]);
+    setIsCheckoutOpen(false);
+  };
+
+  // --- Chatbot Logic ---
   const handleSendMessage = (textToSend?: string) => {
     const text = textToSend || inputMessage;
     if (!text.trim()) return;
@@ -173,7 +235,7 @@ export default function HomePage() {
       const lowerText = text.toLowerCase();
 
       if (lowerText.includes('ส่ง') || lowerText.includes('ค่าส่ง')) {
-        botResponse = 'จัดส่งฟรีทั่วไทยเมื่อซื้อครบ ฿500 ขึ้นไปครับ! (กรณีไม่ถึงคิดค่าส่ง ฿50)';
+        botResponse = 'จัดส่งฟรีแบบธรรมดาเมื่อซื้อครบ ฿500 ขึ้นไปครับ! (ด่วน EMS คิด ฿80)';
       } else if (lowerText.includes('ส่วนลด') || lowerText.includes('โค้ด')) {
         botResponse = '🎉 ลูกค้าใหม่ใช้โค้ด "CHANAKAN100" รับส่วนลดทันที ฿100 เมื่อช้อปครบ ฿1,000 ครับ!';
       } else if (lowerText.includes('สถานะ') || lowerText.includes('ติดตาม') || lowerText.includes('พัสดุ')) {
@@ -194,7 +256,7 @@ export default function HomePage() {
     <div className="min-h-screen bg-slate-50 text-slate-800 font-sans relative">
       {/* Toast Notification */}
       {toastMessage && (
-        <div className="fixed bottom-20 right-5 z-50 bg-slate-900 text-white px-4 py-3 rounded-xl shadow-lg border border-slate-700 transition-all duration-300 text-sm">
+        <div className="fixed bottom-20 right-5 z-50 bg-slate-900 text-white px-5 py-3 rounded-xl shadow-2xl border border-slate-700 transition-all duration-300 text-sm font-medium">
           {toastMessage}
         </div>
       )}
@@ -420,6 +482,227 @@ export default function HomePage() {
         </div>
       )}
 
+      {/* --- Modal กรอกข้อมูลจัดส่งและชำระเงิน (Checkout Shipping Modal) --- */}
+      {isCheckoutOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto">
+          <div 
+            className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm"
+            onClick={() => setIsCheckoutOpen(false)}
+          />
+          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl p-6 z-10 max-h-[90vh] overflow-y-auto my-8">
+            <div className="flex justify-between items-center mb-6 border-b border-slate-100 pb-4">
+              <div>
+                <h3 className="text-xl font-bold text-slate-900">📦 ข้อมูลการจัดส่งสินค้า</h3>
+                <p className="text-xs text-slate-500">กรุณากรอกที่อยู่จัดส่งจริงเพื่อดำเนินการส่งสินค้า</p>
+              </div>
+              <button 
+                onClick={() => setIsCheckoutOpen(false)}
+                className="text-slate-400 hover:text-slate-600 font-bold text-xl"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleOrderSubmit} className="space-y-6">
+              {/* ข้อมูลผู้รับ */}
+              <div>
+                <h4 className="text-sm font-bold text-slate-800 mb-3 flex items-center gap-2">
+                  <span>1. ข้อมูลผู้ติดต่อ</span>
+                </h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1">ชื่อ-นามสกุล ผู้รับ *</label>
+                    <input
+                      type="text"
+                      name="fullName"
+                      required
+                      placeholder="สมชาย ใจดี"
+                      value={shippingData.fullName}
+                      onChange={handleInputChange}
+                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-600"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1">เบอร์โทรศัพท์มือถือ *</label>
+                    <input
+                      type="tel"
+                      name="phone"
+                      required
+                      placeholder="0812345678"
+                      value={shippingData.phone}
+                      onChange={handleInputChange}
+                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-600"
+                    />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label className="block text-xs font-semibold text-slate-600 mb-1">อีเมล (สำหรับรับใบเสร็จและ Tracking)</label>
+                    <input
+                      type="email"
+                      name="email"
+                      placeholder="somchai@example.com"
+                      value={shippingData.email}
+                      onChange={handleInputChange}
+                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-600"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* ที่อยู่จัดส่ง */}
+              <div>
+                <h4 className="text-sm font-bold text-slate-800 mb-3">2. ที่อยู่สำหรับจัดส่ง</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="sm:col-span-2">
+                    <label className="block text-xs font-semibold text-slate-600 mb-1">บ้านเลขที่, ถนน, หมู่บ้าน/อาคาร *</label>
+                    <input
+                      type="text"
+                      name="address"
+                      required
+                      placeholder="123/45 ซอยสุขุมวิท 55 ถนนสุขุมวิท"
+                      value={shippingData.address}
+                      onChange={handleInputChange}
+                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-600"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1">แขวง / ตำบล *</label>
+                    <input
+                      type="text"
+                      name="subDistrict"
+                      required
+                      placeholder="คลองตันเหนือ"
+                      value={shippingData.subDistrict}
+                      onChange={handleInputChange}
+                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-600"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1">เขต / อำเภอ *</label>
+                    <input
+                      type="text"
+                      name="district"
+                      required
+                      placeholder="วัฒนา"
+                      value={shippingData.district}
+                      onChange={handleInputChange}
+                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-600"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1">จังหวัด *</label>
+                    <input
+                      type="text"
+                      name="province"
+                      required
+                      placeholder="กรุงเทพมหานคร"
+                      value={shippingData.province}
+                      onChange={handleInputChange}
+                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-600"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1">รหัสไปรษณีย์ *</label>
+                    <input
+                      type="text"
+                      name="zipCode"
+                      required
+                      placeholder="10110"
+                      value={shippingData.zipCode}
+                      onChange={handleInputChange}
+                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-600"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* วิธีจัดส่ง และวิธีชำระเงิน */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 border-t border-slate-100 pt-4">
+                <div>
+                  <h4 className="text-sm font-bold text-slate-800 mb-2">3. รูปแบบการจัดส่ง</h4>
+                  <div className="space-y-2 text-xs">
+                    <label className="flex items-center gap-2 p-2.5 border rounded-lg cursor-pointer hover:bg-slate-50">
+                      <input
+                        type="radio"
+                        name="shippingMethod"
+                        value="standard"
+                        checked={shippingData.shippingMethod === 'standard'}
+                        onChange={handleInputChange}
+                      />
+                      <div className="flex-1">
+                        <p className="font-semibold text-slate-800">จัดส่งธรรมดา (2-3 วัน)</p>
+                        <p className="text-slate-500">{itemsTotalPrice >= 500 ? 'ฟรีค่าจัดส่ง' : '฿40'}</p>
+                      </div>
+                    </label>
+                    <label className="flex items-center gap-2 p-2.5 border rounded-lg cursor-pointer hover:bg-slate-50">
+                      <input
+                        type="radio"
+                        name="shippingMethod"
+                        value="express"
+                        checked={shippingData.shippingMethod === 'express'}
+                        onChange={handleInputChange}
+                      />
+                      <div className="flex-1">
+                        <p className="font-semibold text-slate-800">จัดส่งด่วน EMS (1-2 วัน)</p>
+                        <p className="text-slate-500">฿80</p>
+                      </div>
+                    </label>
+                  </div>
+                </div>
+
+                <div>
+                  <h4 className="text-sm font-bold text-slate-800 mb-2">4. ช่องทางการชำระเงิน</h4>
+                  <select
+                    name="paymentMethod"
+                    value={shippingData.paymentMethod}
+                    onChange={handleInputChange}
+                    className="w-full px-3 py-2.5 border border-slate-200 rounded-lg text-xs font-medium focus:outline-none focus:border-blue-600 bg-white"
+                  >
+                    <option value="qr">📱 สแกน QR Code พร้อมเพย์</option>
+                    <option value="credit">💳 บัตรเครดิต / บัตรเดบิต</option>
+                    <option value="cod">💵 เก็บเงินปลายทาง (COD)</option>
+                  </select>
+
+                  <div className="mt-3">
+                    <label className="block text-xs font-semibold text-slate-600 mb-1">หมายเหตุถึงผู้ขาย (ถ้ามี)</label>
+                    <textarea
+                      name="note"
+                      rows={2}
+                      placeholder="เช่น ฝากไว้หน้าบ้าน, โทรแจ้งก่อนส่ง"
+                      value={shippingData.note}
+                      onChange={handleInputChange}
+                      className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-xs focus:outline-none focus:border-blue-600"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* สรุปยอดเงิน */}
+              <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 text-xs space-y-1.5">
+                <div className="flex justify-between text-slate-600">
+                  <span>ราคาสินค้ารวม ({totalCartCount} ชิ้น)</span>
+                  <span>฿{itemsTotalPrice.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between text-slate-600">
+                  <span>ค่าจัดส่ง</span>
+                  <span>{shippingFee === 0 ? 'ฟรี' : `฿${shippingFee}`}</span>
+                </div>
+                <div className="flex justify-between text-slate-900 font-bold text-sm border-t border-slate-200 pt-2 mt-2">
+                  <span>ยอดชำระสุทธิ</span>
+                  <span className="text-blue-600 text-base">฿{finalTotalPrice.toLocaleString()}</span>
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                className="w-full py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition shadow-lg text-sm"
+              >
+                ยืนยันการสั่งซื้อและชำระเงิน (฿{finalTotalPrice.toLocaleString()})
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* --- Chatbot Widget --- */}
       <div className="fixed bottom-5 right-5 z-50">
         {!isChatOpen ? (
@@ -468,7 +751,7 @@ export default function HomePage() {
             </div>
 
             {/* Quick Suggestions Bar */}
-            <div className="p-2 bg-white border-t border-slate-100 flex gap-1.5 overflow-x-auto text-[11px] scrollbar-thin">
+            <div className="p-2 bg-white border-t border-slate-100 flex gap-1.5 overflow-x-auto text-[11px]">
               <button
                 onClick={() => handleSendMessage('มีโค้ดส่วนลดไหม?')}
                 className="px-2.5 py-1 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-full font-medium whitespace-nowrap transition"
@@ -515,7 +798,7 @@ export default function HomePage() {
         )}
       </div>
 
-      {/* Cart Drawer */}
+      {/* Slide-over Cart Drawer */}
       {isCartOpen && (
         <div className="fixed inset-0 z-50 overflow-hidden">
           <div 
@@ -592,13 +875,13 @@ export default function HomePage() {
                 <div className="p-4 border-t border-slate-100 bg-slate-50 space-y-3">
                   <div className="flex justify-between text-slate-600 text-sm">
                     <span>ราคารวมทั้งหมด</span>
-                    <span className="text-lg font-bold text-blue-600">฿{totalPrice.toLocaleString()}</span>
+                    <span className="text-lg font-bold text-blue-600">฿{itemsTotalPrice.toLocaleString()}</span>
                   </div>
                   <button 
-                    onClick={() => alert('นำคุณเข้าสู่ขั้นตอนการชำระเงิน!')}
+                    onClick={handleOpenCheckout}
                     className="w-full py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition shadow-md"
                   >
-                    ดำเนินการสั่งซื้อสินค้า →
+                    ดำเนินการสั่งซื้อสินค้า (กรอกที่อยู่) →
                   </button>
                 </div>
               )}
